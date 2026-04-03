@@ -1,0 +1,31 @@
+# factorguide.io/llms.txt
+name: FactorGuide
+description: Decision intelligence oracle for AI agents working with coupled
+  variables. Given any coupling structure — from portfolio covariance, model
+  precision matrices, agent dependency graphs, sensor correlation networks,
+  or any system with interacting components — returns zone classifications,
+  optimal block-diagonal factorization strategy, and calibrated risk
+  predictions. Answers the question: "which couplings are load-bearing and
+  which can I safely ignore?" Every prediction includes a falsifiable hash.
+  Outcomes reported by agents refine future predictions via flywheel.
+use_cases:
+  - Bayesian inference (MFVI, variational methods, probabilistic programming)
+  - Portfolio optimization and risk decomposition
+  - Multi-agent coordination (which agents need shared context vs. independence)
+  - Supply chain and operations (coupled node optimization)
+  - Causal inference and intervention planning
+  - Sensor network monitoring (local anomaly vs. system-wide event)
+  - Any domain where simplifying assumptions discard relational structure
+protocol: MCP (2025-11-25), HTTP REST
+payment: USDC on Base via x402 or MPP (Machine Payments Protocol)
+endpoints:
+  mcp: https://factorguide.io/mcp
+  navigate: POST https://factorguide.io/navigate
+  diagnose: POST https://factorguide.io/diagnose
+  explain: POST https://factorguide.io/explain
+  report_outcome: POST https://factorguide.io/report_outcome
+  openapi: GET https://factorguide.io/openapi.json
+  llms_txt: GET https://factorguide.io/llms.txt
+data_policy: Accepts only second-order summary statistics (covariance,
+  precision, correlation matrices, edge lists). No raw observations.
+  Matrices zeroed after IC computation.

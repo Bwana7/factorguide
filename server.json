@@ -1,0 +1,16 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-16/server.schema.json",
+  "name": "io.github.Bwana7/factorguide",
+  "description": "Send a coupling matrix, get zone classifications and optimal factorization strategy.",
+  "repository": {
+    "url": "https://github.com/Bwana7/factorguide",
+    "source": "github"
+  },
+  "version": "1.2.1",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://factorguide.io/mcp"
+    }
+  ]
+}
