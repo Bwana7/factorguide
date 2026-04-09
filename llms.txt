@@ -1,31 +1,272 @@
-# factorguide.io/llms.txt
-name: FactorGuide
-description: Decision intelligence oracle for AI agents working with coupled
-  variables. Given any coupling structure — from portfolio covariance, model
-  precision matrices, agent dependency graphs, sensor correlation networks,
-  or any system with interacting components — returns zone classifications,
-  optimal block-diagonal factorization strategy, and calibrated risk
-  predictions. Answers the question: "which couplings are load-bearing and
-  which can I safely ignore?" Every prediction includes a falsifiable hash.
-  Outcomes reported by agents refine future predictions via flywheel.
-use_cases:
-  - Bayesian inference (MFVI, variational methods, probabilistic programming)
-  - Portfolio optimization and risk decomposition
-  - Multi-agent coordination (which agents need shared context vs. independence)
-  - Supply chain and operations (coupled node optimization)
-  - Causal inference and intervention planning
-  - Sensor network monitoring (local anomaly vs. system-wide event)
-  - Any domain where simplifying assumptions discard relational structure
-protocol: MCP (2025-11-25), HTTP REST
-payment: USDC on Base via x402 or MPP (Machine Payments Protocol)
-endpoints:
-  mcp: https://factorguide.io/mcp
-  navigate: POST https://factorguide.io/navigate
-  diagnose: POST https://factorguide.io/diagnose
-  explain: POST https://factorguide.io/explain
-  report_outcome: POST https://factorguide.io/report_outcome
-  openapi: GET https://factorguide.io/openapi.json
-  llms_txt: GET https://factorguide.io/llms.txt
-data_policy: Accepts only second-order summary statistics (covariance,
-  precision, correlation matrices, edge lists). No raw observations.
-  Matrices zeroed after IC computation.
+# FactorGuide — Decision Intelligence Oracle for AI Agents
+# https://factorguide.io
+
+> Given a coupling structure, how should I factorize — and what will it cost me?
+
+## What FactorGuide Does
+
+FactorGuide accepts a description of statistical dependencies between
+variables and returns actionable factorization guidance. For every pair
+of variables, it classifies the coupling into one of three zones:
+
+  Zone 1 (FACTORIZE) — Coupling below threshold. Safe to treat as
+  independent. No meaningful information loss.
+
+  Zone 2 (ASSESS) — Coupling in the dependency asymmetry region. The
+  correct action depends on your model class: constitutive coupling
+  (load-bearing, removing it breaks the system) and inductive coupling
+  (scaffolding, removable once constrained) have opposite risk profiles
+  at the same IC value.
+
+  Zone 3 (PRESERVE) — Coupling is load-bearing regardless of model
+  class. Must be modeled jointly. Factorizing here destroys essential
+  information.
+
+Every response includes a falsifiable prediction with a commitment hash.
+When you report your actual inference diagnostics, the system refines
+future predictions. FactorGuide gets more accurate with use.
+
+## When to Use FactorGuide
+
+Use FactorGuide when your agent faces a factorization decision:
+
+  - Bayesian inference: Which parameters to model jointly vs. factorize
+    in MFVI, HMC, or variational methods
+  - Multi-agent coordination: Which agents need shared state vs.
+    independent operation
+  - Portfolio optimization: Which asset correlations are load-bearing
+    vs. noise
+  - System decomposition: Where to draw service boundaries in coupled
+    architectures
+  - Sensor networks: Local anomaly vs. system-wide correlated event
+  - Causal inference: Which dependencies to preserve for valid
+    intervention analysis
+
+Do NOT use FactorGuide for: uncoupled systems, single-variable problems,
+or situations where all variables are already known to be independent.
+
+## Authentication
+
+All endpoints require an X-Wallet header containing your EVM wallet
+address (0x + 40 hex characters).
+
+  X-Wallet: 0xYourWalletAddressHere
+
+First 5 queries from a new wallet are free (trial tier). After that,
+purchase a query bundle with USDC on Base. No account creation, no
+API keys — your wallet address is your identity.
+
+Requests without X-Wallet receive HTTP 400. Invalid or zero addresses
+are rejected. The wallet must be a valid EVM address you control.
+
+## Endpoints
+
+### MCP (Model Context Protocol)
+
+  Endpoint: https://factorguide.io/mcp
+  Transport: streamable-http
+  Protocol: MCP 2025-11-25
+  Registry: io.factorguide/factorguide on the Official MCP Registry
+
+MCP-compatible agents discover tools automatically. The server exposes:
+factorguide_navigate, factorguide_diagnose, factorguide_explain,
+and factorguide_report_outcome.
+
+### HTTP REST
+
+  POST https://factorguide.io/navigate
+  POST https://factorguide.io/diagnose
+  POST https://factorguide.io/explain
+  POST https://factorguide.io/report_outcome
+  GET  https://factorguide.io/openapi.json
+  GET  https://factorguide.io/health
+
+### Agent Discovery
+
+  GET https://factorguide.io/llms.txt       (this file)
+  GET https://factorguide.io/openapi.json   (OpenAPI 3.1 schema)
+
+## Input Formats
+
+FactorGuide accepts four coupling representations. Provide exactly one:
+
+  precision_matrix   — Inverse covariance matrix. Best input format.
+                       IC is read directly from off-diagonals.
+  covariance_matrix  — Server inverts to obtain precision.
+  correlation_matrix — Standardized correlations. Server estimates
+                       precision via Graphical Lasso.
+  edge_list          — Sparse format: [{"i": 0, "j": 1, "value": 0.7}]
+                       with "n" (total variable count). For large systems.
+
+All inputs must be symmetric and positive definite. Non-square, non-
+symmetric, or non-positive-definite matrices are rejected at intake.
+
+Required fields:
+  coupling       — One of the four formats above
+  sample_size    — Integer >= 10. Used for noise floor estimation.
+
+Optional fields:
+  model_class    — "constitutive" | "inductive" | "unknown" (default).
+                   Determines Zone 2 risk curve. If unknown, both
+                   curves are reported.
+  variable_names — String labels for each variable (default: z0, z1, ...)
+  cost_model     — "cubic" | "quadratic" | "linear" | "information_cost"
+  accuracy_target — Numeric > 1.0 (default 2.0)
+  report_sign_detectability — Boolean. If true, reports sign of the
+                   correlation for high-variance-ratio pairs at no
+                   additional cost.
+  report_marginal_ic — Boolean. If true, includes marginal vs. partial
+                   IC comparison.
+  task_type      — "inference" (default) | "control" (v1.2 preview)
+
+## Example Request
+
+  POST https://factorguide.io/navigate
+  Content-Type: application/json
+  X-Wallet: 0xYourWalletAddressHere
+
+  {
+    "coupling": {
+      "covariance_matrix": [
+        [1.00, 0.72, 0.05],
+        [0.72, 1.00, 0.48],
+        [0.05, 0.48, 1.00]
+      ]
+    },
+    "sample_size": 500,
+    "model_class": "constitutive"
+  }
+
+## Example Response (abbreviated)
+
+  {
+    "dipole_analysis": {
+      "pair_classification": [
+        {"i": "z0", "j": "z1", "ic": 0.682, "zone": 3,
+         "recommendation": "PRESERVE"},
+        {"i": "z0", "j": "z2", "ic": 0.031, "zone": 1,
+         "recommendation": "FACTORIZE"},
+        {"i": "z1", "j": "z2", "ic": 0.453, "zone": 2,
+         "recommendation": "ASSESS"}
+      ]
+    },
+    "recommended_strategy": {
+      "blocks": [
+        {"variables": ["z0", "z1"], "reason": "Zone 3 pair."},
+        {"variables": ["z2"], "reason": "Independent after separation."}
+      ],
+      "cost_ratio": 0.42,
+      "predicted_mse_overhead": 1.3
+    },
+    "prediction": {
+      "predicted_mse_ratio": 1.3,
+      "confidence_interval_90": [1.0, 1.8],
+      "falsification_criterion": "If actual MSE ratio > 1.8, this
+        prediction is falsified at 90% confidence.",
+      "prediction_hash": "sha256:..."
+    },
+    "outcome_callback": {
+      "prediction_hash": "sha256:...",
+      "report_template": {
+        "prediction_hash": "sha256:...",
+        "approach_taken": null,
+        "ess_ratio": null,
+        "psis_khat": null,
+        "log_lik_gap": null
+      },
+      "tool": "factorguide_report_outcome",
+      "note": "After running inference, return this template with
+        your diagnostics filled in. Zero cost."
+    }
+  }
+
+## Outcome Reporting
+
+After using FactorGuide's recommendation to run your inference, report
+back with your diagnostics. This is free (no query cost) and improves
+future predictions for all users.
+
+  POST https://factorguide.io/report_outcome
+  Content-Type: application/json
+  X-Wallet: 0xYourWalletAddressHere
+
+  {
+    "prediction_hash": "sha256:...",
+    "approach_taken": "factorized",
+    "ess_ratio": 0.85,
+    "psis_khat": 0.42,
+    "log_lik_gap": -2.1
+  }
+
+## Pricing
+
+  Trial         Free     5 queries per wallet    n <= 25 variables
+  Starter       $0.05    50 queries ($2.50)      n <= 500 variables
+                         200 queries ($10.00)    expires 180 days
+  Professional  $0.03    500 queries ($15.00)    n <= 1000 variables
+                         2000 queries ($60.00)   expires 365 days
+
+Payment: USDC on Base (eip155:8453). When trial is exhausted, the
+server returns HTTP 402 with x402 payment requirements listing all
+available bundles and payment addresses. Send the exact USDC amount
+to the provided address on Base, then retry your request. The server
+verifies the transaction on-chain and credits your wallet automatically.
+
+report_outcome is always free regardless of tier.
+
+## Data Privacy
+
+FactorGuide accepts only second-order summary statistics. No raw
+observations can enter the processing pipeline. This is enforced by
+the intake schema, not by policy. Input matrices are zeroed from
+memory after IC computation. Telemetry records contain aggregate
+coupling statistics only — no matrix values or variable names are
+stored.
+
+## Rate Limits
+
+  Trial          5 requests per minute
+  Starter       10 requests per minute
+  Professional  30 requests per minute
+  Global burst  60 requests per minute
+
+## Error Responses
+
+  400  wallet_required    — X-Wallet header missing
+  400  invalid_wallet     — Wallet address format invalid or rejected
+  402  payment_required   — Trial exhausted, x402 payment details in body
+  403  tool_not_available — Tool not available for your tier
+  403  dimension_exceeded — Matrix exceeds your tier's variable limit
+  422  validation_error   — Input schema validation failure
+  429  rate_limit         — Per-tier or global rate limit exceeded
+
+## Theoretical Foundation
+
+Built on Circulatory Fidelity (CF), a mathematical framework where
+Inference Coupling (IC) measures the partial correlation magnitude
+between variables. The factorization cost function V(IC) = log(cosh(d))
+gives the exact mutual information destroyed by severing a coupling.
+Risk curves are calibrated on 49,000+ validated datapoints across
+37 domains.
+
+  IC = |partial correlation| = tanh(geodesic distance)
+  V(IC) = factorization cost in nats
+  IC_crit = 1/sqrt(3) ~ 0.577 (zone boundary)
+
+Zone boundaries are derived from the Fisher-Rao geometry of the
+precision matrix manifold, not from arbitrary thresholds.
+
+  Theory:     https://circulatoryfidelity.com
+  Manuscript: Zenodo (Circulatory Fidelity v1.1)
+
+## Links
+
+  Website:      https://factorguide.io
+  MCP endpoint: https://factorguide.io/mcp
+  OpenAPI:      https://factorguide.io/openapi.json
+  MCP Registry: https://registry.modelcontextprotocol.io
+                (search: io.factorguide/factorguide)
+  Theory:       https://circulatoryfidelity.com
+  GitHub:       https://github.com/Bwana7/factorguide
+
+Built by CF Laboratory.
